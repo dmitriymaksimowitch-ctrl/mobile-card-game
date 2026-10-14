@@ -1,0 +1,14 @@
+# Godot generated files
+.godot/
+*.tmp
+
+# Exported builds and local tooling
+build/
+exports/
+*.apk
+*.aab
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+*.swp
