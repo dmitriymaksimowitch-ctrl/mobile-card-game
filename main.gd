@@ -35,23 +35,7 @@ func _ready() -> void:
 	show_menu()
 
 func make_theme() -> void:
-	var t := Theme.new()
-	t.default_font_size = 36
-	t.set_font_size("font_size", "Button", 39)
-	t.set_color("font_color", "Label", Color("f7f2df"))
-	var s := StyleBoxFlat.new()
-	s.bg_color = Color("176b4a")
-	s.set_corner_radius_all(20)
-	s.content_margin_left = 20
-	s.content_margin_right = 20
-	s.content_margin_top = 16
-	s.content_margin_bottom = 16
-	t.set_stylebox("normal", "Button", s)
-	var h := s.duplicate()
-	h.bg_color = Color("218a61")
-	t.set_stylebox("hover", "Button", h)
-	t.set_stylebox("pressed", "Button", h)
-	theme = t
+	theme = CardVisuals.make_theme()
 
 func screen() -> void:
 	# Сначала отсоединяем старый экран, чтобы старые и новые карты не
@@ -74,7 +58,7 @@ func screen() -> void:
 
 func title(main: String, sub := "") -> void:
 	var header := PanelContainer.new()
-	var header_style := StyleBoxFlat.new(); header_style.bg_color = Color(0.025,0.07,0.06,0.88)
+	var header_style := StyleBoxFlat.new(); header_style.bg_color = Color("314658")
 	header_style.border_color = Color("9c7a35"); header_style.border_width_bottom = 3; header_style.set_corner_radius_all(22)
 	header_style.content_margin_top = 14; header_style.content_margin_bottom = 14
 	header.add_theme_stylebox_override("panel", header_style); box.add_child(header)
@@ -127,7 +111,7 @@ func game_menu_row(text: String, play_call: Callable, rules_call: Callable) -> v
 func show_menu() -> void:
 	revision += 1
 	phase = "menu"
-	screen(); title("Карточный клуб", "Выберите игру • кнопка ? открывает правила")
+	screen(); title("Карточный клуб", "Версия 1.0.0 • выберите игру")
 	game_menu_row("Простой дурак", choose_durak_variant.bind("simple"), show_durak_rules.bind("simple"))
 	game_menu_row("Подкидной дурак", choose_durak_variant.bind("podkidnoy"), show_durak_rules.bind("podkidnoy"))
 	game_menu_row("Переводной дурак", choose_durak_variant.bind("perevodnoy"), show_durak_rules.bind("perevodnoy"))
@@ -408,7 +392,7 @@ func draw_circle_table() -> void:
 		felt.add_child(button)
 	CardVisuals.add_table_seats(felt, player_names(), hand_counts(), actor, Vector2(996, 760))
 	var controls := HBoxContainer.new(); controls.alignment = BoxContainer.ALIGNMENT_CENTER; controls.custom_minimum_size.y = 90; box.add_child(controls)
-	controls.add_child(small_button("Меню", show_menu))
+	# Menu is available in the top bar.
 
 func first_attacker() -> int:
 	var who := 0
@@ -439,7 +423,7 @@ func draw_table() -> void:
 	status.custom_minimum_size.y = 58
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	status.modulate = Color("f2cf72")
-	var status_style := StyleBoxFlat.new(); status_style.bg_color = Color(0.02,0.10,0.08,0.88)
+	var status_style := StyleBoxFlat.new(); status_style.bg_color = Color("314658")
 	status_style.border_color = Color("9c7a35"); status_style.set_border_width_all(2); status_style.set_corner_radius_all(18)
 	status.add_theme_stylebox_override("normal", status_style)
 	box.add_child(status)
@@ -455,7 +439,7 @@ func draw_table() -> void:
 	if actor == 0 and phase == "attack" and not table.is_empty(): controls.add_child(small_button("Пас", pass_attack))
 	if actor == 0 and phase == "simple_add": controls.add_child(small_button("Начать защиту", begin_simple_defense))
 	if actor == 0 and phase == "defense": controls.add_child(small_button("Взять", take))
-	controls.add_child(small_button("Меню", show_menu))
+	# Menu is available in the top bar.
 	deal_animation_pending = false
 	newly_drawn.clear()
 	table_animation.clear()
@@ -518,13 +502,14 @@ func make_small_card_back() -> Label:
 	return back
 
 func add_hand_fan() -> void:
+	hands[0].sort_custom(func(a: String, b: String): return CardVisuals.card_less(a, b, trump))
 	var area := Control.new()
-	area.custom_minimum_size.y = 310
+	area.custom_minimum_size.y = 330
 	area.clip_contents = false
 	box.add_child(area)
 	var card_count := hands[0].size()
 	if card_count == 0: return
-	var card_size := Vector2(164, 220)
+	var card_size := Vector2(174, 250)
 	var available := 996.0
 	var step: float = 0.0 if card_count == 1 else minf(118.0, (available - card_size.x) / (card_count - 1))
 	var total_width: float = card_size.x + step * (card_count - 1)
@@ -532,16 +517,16 @@ func add_hand_fan() -> void:
 	for index in card_count:
 		var card: String = hands[0][index]
 		var distance := index - (card_count - 1) / 2.0
-		var home := Vector2(start_x + index * step, 18.0 + minf(abs(distance) * 5.0, 62.0))
-		var angle: float = distance * minf(3.2, 18.0 / maxf(1.0, card_count - 1.0))
-		var playable := actor == 0 and legal(0, card)
+		var home := Vector2(start_x + index * step, 45.0)
+		var angle: float = 0.0
+		var playable := true
 		var b := make_hand_card(card, playable)
 		b.position = home
 		b.rotation_degrees = angle
 		b.z_index = index
 		b.mouse_entered.connect(lift_card.bind(b, home, angle))
 		b.mouse_exited.connect(lower_card.bind(b, home, angle, index))
-		b.pressed.connect(play.bind(0, card))
+		b.pressed.connect(attempt_hand_card.bind(card, b))
 		area.add_child(b)
 		if deal_animation_pending and card in newly_drawn[0]:
 			# Карта летит от видимой колоды к руке игрока.
@@ -551,24 +536,30 @@ func add_hand_fan() -> void:
 			b.modulate.a = 0.0
 			var tween := create_tween().set_parallel(true)
 			tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-			tween.tween_property(b, "position", home, 0.9).set_delay(index * 0.13)
-			tween.tween_property(b, "rotation_degrees", angle, 0.9).set_delay(index * 0.13)
-			tween.tween_property(b, "scale", Vector2.ONE, 0.9).set_delay(index * 0.13)
-			tween.tween_property(b, "modulate:a", 1.0 if playable else 0.78, 0.5).set_delay(index * 0.13)
+			tween.tween_property(b, "position", home, 0.35).set_delay(index * 0.04)
+			tween.tween_property(b, "rotation_degrees", angle, 0.35).set_delay(index * 0.04)
+			tween.tween_property(b, "scale", Vector2.ONE, 0.35).set_delay(index * 0.04)
+			tween.tween_property(b, "modulate:a", 1.0, 0.5).set_delay(index * 0.04)
 
 func make_hand_card(card: String, playable: bool) -> Button:
 	var b := Button.new()
-	CardVisuals.decorate_button(b, card, Vector2(164, 220), playable)
-	b.modulate = Color.WHITE if playable else Color(0.78, 0.78, 0.78, 1)
+	CardVisuals.decorate_button(b, card, Vector2(174, 250), playable)
+	b.modulate = Color.WHITE
 	return b
+
+func attempt_hand_card(value: String, view: Control) -> void:
+	if not legal(0, value):
+		CardVisuals.shake_card(view)
+		return
+	play(0, value)
 
 func lift_card(card: Control, home: Vector2, angle: float) -> void:
 	card.z_index = 1000
 	var tween := create_tween().set_parallel(true)
 	tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.tween_property(card, "position", home + Vector2(0, -92), 0.18)
+	tween.tween_property(card, "position", home + Vector2(0, -30), 0.18)
 	tween.tween_property(card, "rotation_degrees", angle * 0.12, 0.18)
-	tween.tween_property(card, "scale", Vector2(1.18, 1.18), 0.18)
+	tween.tween_property(card, "scale", Vector2(1.04, 1.04), 0.18)
 
 func lower_card(card: Control, home: Vector2, angle: float, layer: int) -> void:
 	card.z_index = layer
@@ -588,7 +579,7 @@ func card_label(card: String) -> Label:
 
 func add_playing_table() -> void:
 	var felt := Panel.new()
-	felt.custom_minimum_size.y = 455
+	felt.custom_minimum_size.y = 600
 	felt.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var felt_style := StyleBoxFlat.new()
 	felt_style.bg_color = Color("0b4f5f")
@@ -599,61 +590,67 @@ func add_playing_table() -> void:
 	felt_style.shadow_size = 14
 	felt.add_theme_stylebox_override("panel", felt_style)
 	box.add_child(felt)
-	var inner := Panel.new(); inner.position = Vector2(17,17); inner.size = Vector2(962,421); inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var inner_style := StyleBoxFlat.new(); inner_style.bg_color = Color.TRANSPARENT; inner_style.border_color = Color(0.85,0.70,0.33,0.34)
-	inner_style.set_border_width_all(3); inner_style.set_corner_radius_all(60); inner.add_theme_stylebox_override("panel", inner_style); felt.add_child(inner)
-	var mark := Label.new(); mark.text = "♣   ♦   ♥   ♠"; mark.position = Vector2(275,170); mark.size = Vector2(470,80)
-	mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; mark.add_theme_font_size_override("font_size", 52); mark.modulate = Color(1,1,1,0.07)
-	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE; felt.add_child(mark)
 
 	var deck_title := Label.new()
 	deck_title.text = "КОЛОДА • %d" % deck.size()
-	deck_title.position = Vector2(28, 24)
+	deck_title.position = Vector2(15, -195)
 	deck_title.add_theme_font_size_override("font_size", 25)
 	deck_title.modulate = Color("b8dacb")
 	felt.add_child(deck_title)
 
 	if not deck.is_empty():
 		var trump_card := card_label((RANKS[0] + "♦") if durak_variant == "japanese" else deck[0])
-		trump_card.position = Vector2(104, 238)
+		trump_card.position = Vector2(62, -95)
+		trump_card.scale = Vector2(0.58, 0.58)
 		trump_card.rotation_degrees = 90
 		trump_card.pivot_offset = trump_card.size / 2.0
 		trump_card.z_index = 1
 		felt.add_child(trump_card)
 		for layer in 3:
 			var back := make_card_back()
-			back.position = Vector2(34 + layer * 4, 92 - layer * 4)
+			back.position = Vector2(18 + layer * 3, -152 - layer * 3)
+			back.scale = Vector2(0.58, 0.58)
 			back.z_index = 3 + layer
 			felt.add_child(back)
 	else:
 		var empty_deck := Label.new()
 		empty_deck.text = "Колода\nпуста"
-		empty_deck.position = Vector2(34, 130)
+		empty_deck.position = Vector2(18, -170)
 		empty_deck.size = Vector2(128, 176)
 		empty_deck.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty_deck.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		empty_deck.modulate = Color(1, 1, 1, 0.45)
 		felt.add_child(empty_deck)
 
+	var play_area := Control.new()
+	play_area.name = "PlayedCards"
+	play_area.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	felt.add_child(play_area)
+	play_area.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	play_area.offset_left = -310; play_area.offset_right = 310
+	play_area.offset_top = -215; play_area.offset_bottom = 215
+
 	if table.is_empty():
 		var empty := Label.new()
 		empty.text = "Положите карту на стол"
-		empty.position = Vector2(280, 185)
-		empty.size = Vector2(610, 60)
+		empty.position = Vector2(0, 185)
+		empty.size = Vector2(620, 60)
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		empty.modulate = Color(1, 1, 1, 0.38)
-		felt.add_child(empty)
+		play_area.add_child(empty)
 	else:
 		for index in table.size():
 			var column := index % 3
 			var row := index / 3
-			var base := Vector2(250 + column * 220, 42 + row * 202)
+			var columns := mini(3, table.size())
+			var rows := ceili(table.size() / 3.0)
+			var base := Vector2((620 - (columns * 200 - 18)) / 2.0 + column * 200, (430 - (rows * 215 - 4)) / 2.0 + row * 215)
 			var attack_card := card_label(table[index].attack)
 			attack_card.position = base
 			attack_card.rotation_degrees = -4 + column * 2
 			attack_card.pivot_offset = attack_card.size / 2.0
-			felt.add_child(attack_card)
+			play_area.add_child(attack_card)
 			if table_animation.get("pair", -1) == index and table_animation.get("kind", "") == "attack":
 				animate_card_to_table(attack_card, base, -4 + column * 2, table_animation.get("player", 0))
 			if table[index].defense:
@@ -662,7 +659,7 @@ func add_playing_table() -> void:
 				defense_card.rotation_degrees = 7
 				defense_card.pivot_offset = defense_card.size / 2.0
 				defense_card.z_index = 2
-				felt.add_child(defense_card)
+				play_area.add_child(defense_card)
 				if table_animation.get("pair", -1) == index and table_animation.get("kind", "") == "defense":
 					animate_card_to_table(defense_card, base + Vector2(54, 35), 7, table_animation.get("player", 0), 2)
 	CardVisuals.add_table_seats(felt, player_names(), hand_counts(), actor, Vector2(996, 455))
@@ -681,15 +678,15 @@ func animate_card_to_table(card: Control, destination: Vector2, angle: float, pl
 	card.z_index = 100
 	var tween := create_tween().set_parallel(true)
 	tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_property(card, "position", destination, 0.95)
-	tween.tween_property(card, "rotation_degrees", angle, 0.95)
-	tween.tween_property(card, "scale", Vector2.ONE, 0.95)
-	tween.tween_property(card, "modulate:a", 1.0, 0.58)
+	tween.tween_property(card, "position", destination, 0.3)
+	tween.tween_property(card, "rotation_degrees", angle, 0.3)
+	tween.tween_property(card, "scale", Vector2.ONE, 0.3)
+	tween.tween_property(card, "modulate:a", 1.0, 0.22)
 	tween.chain().tween_property(card, "z_index", final_layer, 0.0)
 
 func make_card_back() -> Label:
 	var back := Label.new()
-	back.text = "✦  ✦\n  ✦\n✦  ✦"
+	back.text = ""
 	back.position = Vector2.ZERO
 	back.size = Vector2(128, 176)
 	back.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -811,16 +808,28 @@ func advance_attacker() -> bool:
 	return false
 
 func take() -> void:
-	for pair in table:
-		hands[defender].append(pair.attack)
-		if pair.defense: hands[defender].append(pair.defense)
-	message = "%s берёт карты" % name_of(defender)
-	var next := next_player(defender)
-	refill(); attacker = next; continue_game()
+	finish_round(true)
 
 func finish_defense() -> void:
-	message = "%s отбился" % name_of(defender)
+	finish_round(false)
+
+func finish_round(taking: bool) -> void:
+	if phase == "resolving": return
+	phase = "resolving"
+	revision += 1
+	var stamp := revision
+	draw_table()
+	await get_tree().create_timer(0.9).timeout
+	if stamp != revision or phase != "resolving": return
 	var next := defender
+	if taking:
+		for pair in table:
+			hands[defender].append(pair.attack)
+			if pair.defense: hands[defender].append(pair.defense)
+		message = "%s берёт карты" % name_of(defender)
+		next = next_player(defender)
+	else:
+		message = "%s отбился" % name_of(defender)
 	refill(); attacker = next; continue_game()
 
 func refill() -> void:
@@ -856,12 +865,12 @@ func game_over(left: Array[int]) -> void:
 	spacer(); action("Сыграть ещё", start.bind(count)); action("Главное меню", show_menu); spacer()
 
 func schedule_bot() -> void:
-	if actor == 0 or phase in ["menu", "over"]: return
+	if actor == 0 or phase in ["menu", "over", "resolving"]: return
 	bot_turn(revision)
 
 func bot_turn(stamp: int) -> void:
-	await get_tree().create_timer(0.8).timeout
-	if stamp != revision or actor == 0 or phase in ["menu", "over"]: return
+	await get_tree().create_timer(0.5).timeout
+	if stamp != revision or actor == 0 or phase in ["menu", "over", "resolving"]: return
 	var choices: Array[String] = []
 	for card in hands[actor]:
 		if legal(actor, card): choices.append(card)
@@ -902,3 +911,7 @@ func rank_of(card: String) -> String: return card.left(card.length() - 1)
 func suit_of(card: String) -> String: return card.right(1)
 func value(card: String) -> int: return RANKS.find(rank_of(card))
 func strength(card: String) -> int: return value(card) + (20 if suit_of(card) == trump else 0)
+
+func apply_game_layout() -> void:
+	if is_instance_valid(box):
+		CardVisuals.clean_layout(box)

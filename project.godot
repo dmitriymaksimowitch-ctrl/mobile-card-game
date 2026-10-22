@@ -10,7 +10,8 @@ config_version=5
 
 [application]
 
-config/name="Карточный клуб"
+config/name="Карточный клуб 1"
+config/version="1.0.0"
 run/main_scene="res://main.tscn"
 config/icon="res://icon.svg"
 config/features=PackedStringArray("4.7")
@@ -22,6 +23,7 @@ window/size/viewport_height=1920
 window/size/window_width_override=405
 window/size/window_height_override=720
 window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 window/handheld/orientation=1
 
 [rendering]
@@ -29,3 +31,5 @@ window/handheld/orientation=1
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 environment/defaults/default_clear_color=Color(0.025, 0.078, 0.06, 1)
+
+textures/vram_compression/import_etc2_astc=true

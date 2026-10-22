@@ -1,112 +1,186 @@
 extends RefCounted
 
 const RED_SUITS := ["♦", "♥"]
-const INK := Color("18201d")
-const RED_INK := Color("bd2636")
-const PAPER := Color("fffaf0")
-const GOLD := Color("d8b85c")
+const INK := Color("082b3b")
+const RED_INK := Color("c42b3d")
+const PAPER := Color.WHITE
+const GOLD := Color("f3b64c")
+static var cached_theme: Theme
+static var cached_background: GradientTexture2D
 
 static func rank_of(card: String) -> String: return card.left(card.length() - 1)
 static func suit_of(card: String) -> String: return card.right(1)
 static func ink_for(card: String) -> Color: return RED_INK if suit_of(card) in RED_SUITS else INK
 
-static func face_style(playable := true) -> StyleBoxFlat:
+static func face_style(_playable := true) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = PAPER if playable else Color("eee9dc")
-	style.border_color = GOLD if playable else Color("a79f8c")
-	style.set_border_width_all(4); style.set_corner_radius_all(15)
-	style.shadow_color = Color(0.01, 0.02, 0.02, 0.5); style.shadow_size = 11; style.shadow_offset = Vector2(0, 8)
+	style.bg_color = PAPER; style.border_color = Color("15232c")
+	style.set_border_width_all(5); style.set_corner_radius_all(18)
 	return style
 
-static func decorate_button(button: Button, card: String, card_size: Vector2, playable := true) -> void:
+static func decorate_button(button: Button, card: String, card_size: Vector2, _playable := true) -> void:
 	button.text = ""; button.size = card_size; button.custom_minimum_size = card_size
-	button.pivot_offset = Vector2(card_size.x / 2.0, card_size.y * 0.92)
-	var normal := face_style(playable); var hover := normal.duplicate(); hover.border_color = Color("f6dc82"); hover.shadow_size = 17
-	var pressed := normal.duplicate(); pressed.bg_color = Color("f5edda")
-	for state in ["normal", "disabled"]: button.add_theme_stylebox_override(state, normal)
-	button.add_theme_stylebox_override("hover", hover); button.add_theme_stylebox_override("pressed", pressed)
+	button.pivot_offset = card_size / 2.0; button.focus_mode = Control.FOCUS_NONE
+	for state in ["normal", "disabled", "hover", "pressed"]: button.add_theme_stylebox_override(state, face_style())
 	add_card_marks(button, card, card_size)
 
 static func add_card_marks(parent: Control, card: String, card_size: Vector2) -> void:
 	var ink := ink_for(card)
-	var corner := Label.new(); corner.text = "%s\n%s" % [rank_of(card), suit_of(card)]
-	corner.position = Vector2(10, 7); corner.size = Vector2(52, 72); corner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	corner.add_theme_font_size_override("font_size", int(card_size.x * 0.22)); corner.add_theme_color_override("font_color", ink)
+	var corner := Label.new(); corner.text = rank_of(card)
+	corner.position = Vector2(12, -3); corner.size = Vector2(card_size.x * 0.48, card_size.y * 0.28)
+	corner.add_theme_font_size_override("font_size", int(card_size.x * 0.34)); corner.add_theme_color_override("font_color", ink)
 	corner.mouse_filter = Control.MOUSE_FILTER_IGNORE; parent.add_child(corner)
-	var center := Label.new(); center.text = suit_of(card); center.position = Vector2(0, card_size.y * 0.23)
-	center.size = Vector2(card_size.x, card_size.y * 0.52); center.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	center.vertical_alignment = VERTICAL_ALIGNMENT_CENTER; center.add_theme_font_size_override("font_size", int(card_size.x * 0.48))
-	center.add_theme_color_override("font_color", ink); center.mouse_filter = Control.MOUSE_FILTER_IGNORE; parent.add_child(center)
-	var lower := Label.new(); lower.text = "%s\n%s" % [rank_of(card), suit_of(card)]
-	lower.position = Vector2(card_size.x - 61, card_size.y - 79); lower.size = Vector2(52, 72); lower.rotation_degrees = 180
-	lower.pivot_offset = lower.size / 2.0; lower.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lower.add_theme_font_size_override("font_size", int(card_size.x * 0.22)); lower.add_theme_color_override("font_color", ink)
-	lower.mouse_filter = Control.MOUSE_FILTER_IGNORE; parent.add_child(lower)
+	var suit := Label.new(); suit.text = suit_of(card); suit.position = Vector2(12, card_size.y * 0.23)
+	suit.add_theme_font_size_override("font_size", int(card_size.x * 0.31)); suit.add_theme_color_override("font_color", ink)
+	suit.mouse_filter = Control.MOUSE_FILTER_IGNORE; parent.add_child(suit)
+	var center := Label.new(); center.text = suit_of(card); center.position = Vector2(card_size.x * 0.12, card_size.y * 0.40)
+	center.size = Vector2(card_size.x * 0.85, card_size.y * 0.57)
+	center.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; center.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	center.add_theme_font_size_override("font_size", int(card_size.x * 0.70)); center.add_theme_color_override("font_color", ink)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE; parent.add_child(center)
 
 static func decorate_label(label: Label, card: String, card_size: Vector2) -> void:
-	label.text = "%s\n%s" % [rank_of(card), suit_of(card)]; label.size = card_size; label.custom_minimum_size = card_size
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", int(card_size.x * 0.35)); label.add_theme_color_override("font_color", ink_for(card))
-	label.add_theme_stylebox_override("normal", face_style())
+	label.text = ""; label.size = card_size; label.custom_minimum_size = card_size
+	label.add_theme_stylebox_override("normal", face_style()); add_card_marks(label, card, card_size)
 
-static func back_style(accent := Color("295a91")) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new(); style.bg_color = accent; style.border_color = Color("f1db9b")
-	style.set_border_width_all(6); style.set_corner_radius_all(13); style.shadow_color = Color(0,0,0,0.46)
-	style.shadow_size = 9; style.shadow_offset = Vector2(0,6); return style
+static func back_style(_accent := Color("274454")) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new(); style.bg_color = Color("24384c"); style.border_color = Color("527183")
+	style.set_border_width_all(6); style.set_corner_radius_all(18)
+	style.shadow_color = Color("12202e"); style.shadow_size = 3
+	return style
 
 static func make_background() -> TextureRect:
-	var gradient := Gradient.new(); gradient.colors = PackedColorArray([Color("2d2028"), Color("60383a"), Color("352532")])
-	gradient.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
-	var texture := GradientTexture2D.new(); texture.gradient = gradient; texture.width = 1080; texture.height = 1920
-	texture.fill_from = Vector2(0.05,0.0); texture.fill_to = Vector2(0.95,1.0)
-	var background := TextureRect.new(); background.texture = texture; background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); return background
+	if cached_background == null:
+		var gradient := Gradient.new(); gradient.colors = PackedColorArray([Color("314658"), Color("243747")])
+		cached_background = GradientTexture2D.new(); cached_background.gradient = gradient
+		cached_background.width = 16; cached_background.height = 256
+		cached_background.fill_from = Vector2.ZERO; cached_background.fill_to = Vector2(0,1)
+	var view := TextureRect.new(); view.texture = cached_background; view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	view.mouse_filter = Control.MOUSE_FILTER_IGNORE; view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	return view
+
+static func make_theme() -> Theme:
+	if cached_theme != null: return cached_theme
+	cached_theme = Theme.new(); cached_theme.default_font = preload("res://fonts/Club-Bold.ttf"); cached_theme.default_font_size = 30
+	cached_theme.set_font_size("font_size", "Button", 32)
+	cached_theme.set_color("font_color", "Label", Color("f7f3e8"))
+	for state in ["font_color", "font_hover_color", "font_pressed_color"]: cached_theme.set_color(state, "Button", Color("243747"))
+	for state in ["normal", "hover", "pressed", "disabled"]:
+		var style := StyleBoxFlat.new(); style.bg_color = Color("f7f3e8") if state != "pressed" else GOLD
+		if state == "disabled": style.bg_color = Color("83929d")
+		style.set_corner_radius_all(38); style.content_margin_left = 24; style.content_margin_right = 24
+		style.content_margin_top = 14; style.content_margin_bottom = 14
+		cached_theme.set_stylebox(state, "Button", style)
+	return cached_theme
+
+static func table_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new(); style.bg_color = Color("175e70"); style.border_color = GOLD
+	style.set_border_width_all(15); style.set_corner_radius_all(100)
+	return style
 
 static func add_table_seats(table: Control, names: Array[String], card_counts: Array[int], active_player: int, table_size: Vector2) -> void:
-	var opponents := names.size() - 1
-	for player in range(1, names.size()):
-		var seat := PanelContainer.new(); seat.custom_minimum_size = Vector2(190, 58); seat.size = seat.custom_minimum_size
-		var style := StyleBoxFlat.new(); style.bg_color = Color("e6bb62") if player == active_player else Color("d3a956")
-		style.border_color = Color("fff0a8") if player == active_player else Color("477666")
-		style.set_border_width_all(3); style.set_corner_radius_all(25); style.shadow_size = 5
-		seat.add_theme_stylebox_override("panel", style)
-		var label := Label.new(); label.text = "%s%s" % [names[player], "  •" if player == active_player else ""]
+	table.add_theme_stylebox_override("panel", table_style())
+	var parent := table.get_parent()
+	var game := parent.get_parent().get_parent()
+	var frame := MarginContainer.new(); frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	frame.add_theme_constant_override("margin_left", 80); frame.add_theme_constant_override("margin_right", 80)
+	var index := table.get_index(); parent.add_child(frame); parent.move_child(frame, index); table.reparent(frame, false)
+	var gap := Control.new(); gap.custom_minimum_size.y = 220
+	parent.add_child(gap); parent.move_child(gap, frame.get_index())
+	# Adapt older fixed-coordinate layouts to the actual center of the table.
+	if table.get_node_or_null("PlayedCards") == null:
+		var existing := table.get_children()
+		var center := Control.new(); center.mouse_filter = Control.MOUSE_FILTER_IGNORE; table.add_child(center)
+		center.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+		center.offset_left = -table_size.x / 2; center.offset_right = table_size.x / 2
+		center.offset_top = -table_size.y / 2; center.offset_bottom = table_size.y / 2
+		center.pivot_offset = table_size / 2.0; center.scale = Vector2(0.80,0.80)
+		for child in existing:
+			if child is Panel or (child is Label and child.text == "♣   ♦   ♥   ♠"):
+				table.remove_child(child); child.queue_free()
+			else: child.reparent(center, false)
+	var mark := Label.new(); mark.text = "♠"; mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mark.add_theme_font_size_override("font_size", 380); mark.add_theme_color_override("font_color", Color("15596a"))
+	mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; mark.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	table.add_child(mark); table.move_child(mark, 0); mark.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for player in names.size():
+		var top := player == 1 if names.size() == 2 else player == 2
+		var side := player != 0 and not top
+		var seat := PanelContainer.new(); seat.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var style := StyleBoxFlat.new(); style.bg_color = GOLD if player == active_player else Color("f6d899")
+		style.border_color = GOLD; style.set_border_width_all(6); style.set_corner_radius_all(46)
+		style.content_margin_left = 14; style.content_margin_right = 14; seat.add_theme_stylebox_override("panel", style)
+		var label := Label.new(); label.text = names[player].to_upper()
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		label.add_theme_font_size_override("font_size", 29); label.add_theme_color_override("font_color", Color("573524")); seat.add_child(label)
-		if opponents == 1:
-			seat.set_anchor(SIDE_LEFT,0.5); seat.set_anchor(SIDE_RIGHT,0.5); seat.offset_left=-95; seat.offset_right=95; seat.offset_top=-29; seat.offset_bottom=29
-		elif opponents == 2:
-			seat.set_anchor(SIDE_TOP,0.5); seat.set_anchor(SIDE_BOTTOM,0.5); seat.offset_top=-29; seat.offset_bottom=29
-			if player==1: seat.offset_left=-66; seat.offset_right=124
-			else: seat.set_anchor(SIDE_LEFT,1.0); seat.set_anchor(SIDE_RIGHT,1.0); seat.offset_left=-124; seat.offset_right=66
-			seat.pivot_offset = seat.size / 2.0; seat.rotation_degrees = -90 if player == 1 else 90
+		label.add_theme_font_size_override("font_size", 28); label.add_theme_color_override("font_color", Color("344858")); seat.add_child(label)
+		table.add_child(seat); seat.z_index = 80
+		if side:
+			seat.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT if player == 1 else Control.PRESET_CENTER_RIGHT)
+			seat.offset_left = -100; seat.offset_right = 100; seat.offset_top = -40; seat.offset_bottom = 40
+			seat.pivot_offset = Vector2(100,40); seat.rotation_degrees = 90 if player == 1 else -90
 		else:
-			if player == 1:
-				seat.set_anchor(SIDE_TOP,0.5); seat.set_anchor(SIDE_BOTTOM,0.5); seat.offset_left=-66; seat.offset_right=124; seat.offset_top=-29; seat.offset_bottom=29; seat.pivot_offset = seat.size / 2.0; seat.rotation_degrees = -90
-			elif player == 2:
-				seat.set_anchor(SIDE_LEFT,0.5); seat.set_anchor(SIDE_RIGHT,0.5); seat.offset_left=-95; seat.offset_right=95; seat.offset_top=-29; seat.offset_bottom=29
-			else:
-				seat.set_anchor(SIDE_LEFT,1.0); seat.set_anchor(SIDE_RIGHT,1.0); seat.set_anchor(SIDE_TOP,0.5); seat.set_anchor(SIDE_BOTTOM,0.5); seat.offset_left=-124; seat.offset_right=66; seat.offset_top=-29; seat.offset_bottom=29; seat.pivot_offset = seat.size / 2.0; seat.rotation_degrees = 90
-		seat.z_index = 80; table.add_child(seat)
+			seat.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP if top else Control.PRESET_CENTER_BOTTOM)
+			seat.offset_left = -105; seat.offset_right = 105; seat.offset_top = -40; seat.offset_bottom = 40
+		if player == 0: continue
 		var shown := mini(card_counts[player], 8)
-		for card_index in shown:
-			var back := Label.new(); back.text = "✦"; back.size = Vector2(62, 86)
-			back.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; back.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-			back.add_theme_font_size_override("font_size", 20)
-			var back_box := back_style(); back_box.set_border_width_all(3); back_box.set_corner_radius_all(8); back.add_theme_stylebox_override("normal", back_box)
-			if opponents == 1 or (opponents == 3 and player == 2):
-				back.set_anchor(SIDE_LEFT,0.5); back.set_anchor(SIDE_RIGHT,0.5); back.offset_left=-31+(card_index-(shown-1)/2.0)*19; back.offset_right=31+(card_index-(shown-1)/2.0)*19; back.offset_top=38; back.offset_bottom=124
+		for i in shown:
+			var back := Label.new(); back.mouse_filter = Control.MOUSE_FILTER_IGNORE; back.add_theme_stylebox_override("normal", back_style())
+			table.add_child(back); back.z_index = 50 + i
+			if top:
+				back.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+				back.offset_left = -65 + (i - (shown - 1) / 2.0) * 22; back.offset_right = back.offset_left + 130
+				back.offset_top = -210; back.offset_bottom = -55
 			else:
-				back.pivot_offset = back.size / 2.0; back.rotation_degrees = 90
-				back.set_anchor(SIDE_TOP,0.5); back.set_anchor(SIDE_BOTTOM,0.5); back.offset_top=-43+(card_index-(shown-1)/2.0)*15; back.offset_bottom=43+(card_index-(shown-1)/2.0)*15
-				if player == 1: back.offset_left=-34; back.offset_right=28
-				else: back.set_anchor(SIDE_LEFT,1.0); back.set_anchor(SIDE_RIGHT,1.0); back.offset_left=-28; back.offset_right=34
-			back.z_index = 70 + card_index; table.add_child(back)
-	var you := PanelContainer.new(); you.custom_minimum_size = Vector2(150, 54); you.size = you.custom_minimum_size
-	you.set_anchor(SIDE_LEFT,0.5); you.set_anchor(SIDE_RIGHT,0.5); you.set_anchor(SIDE_TOP,1.0); you.set_anchor(SIDE_BOTTOM,1.0)
-	you.offset_left=-75; you.offset_right=75; you.offset_top=-27; you.offset_bottom=27; you.z_index = 82
-	var you_style := StyleBoxFlat.new(); you_style.bg_color = Color("e6bb62") if active_player == 0 else Color("d3a956")
-	you_style.border_color = Color("fff0a8"); you_style.set_border_width_all(3); you_style.set_corner_radius_all(24); you.add_theme_stylebox_override("panel", you_style)
-	var you_label := Label.new(); you_label.text = "ВЫ%s" % ("  •" if active_player == 0 else "")
-	you_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; you_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	you_label.add_theme_font_size_override("font_size", 24); you_label.add_theme_color_override("font_color", Color("573524")); you.add_child(you_label); table.add_child(you)
+				back.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT if player == 1 else Control.PRESET_CENTER_RIGHT)
+				back.offset_left = -175 if player == 1 else 55; back.offset_right = back.offset_left + 120
+				back.offset_top = -80 + (i - (shown - 1) / 2.0) * 20; back.offset_bottom = back.offset_top + 160
+	add_game_header(parent, game)
+	# Runs after the caller has finished adding action buttons and hand labels.
+	game.call_deferred("apply_game_layout")
+
+static func add_game_header(container: VBoxContainer, game: Control) -> void:
+	var main_game := game.has_method("durak_name")
+	var back := Callable(game, "show_menu" if main_game else "show_setup")
+	var help := Callable(game, "show_durak_rules").bind(game.get("durak_variant")) if main_game else Callable(game, "show_rules")
+	var row := HBoxContainer.new(); row.name = "GameHeader"; row.custom_minimum_size.y = 112; row.add_theme_constant_override("separation", 24)
+	container.add_child(row); container.move_child(row, 0)
+	row.add_child(round_button("‹", back))
+	var name := Label.new(); name.text = game.durak_name() if main_game else "КАРТОЧНЫЙ КЛУБ"
+	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL; name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER; name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; name.add_theme_font_size_override("font_size", 28); row.add_child(name)
+	row.add_child(round_button("?", help))
+
+static func round_button(text: String, callback: Callable) -> Button:
+	var button := Button.new(); button.text = text; button.custom_minimum_size = Vector2(108,108)
+	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER; button.add_theme_font_size_override("font_size", 58 if text == "‹" else 44)
+	for state in ["normal","hover","pressed"]:
+		var style := StyleBoxFlat.new(); style.bg_color = PAPER; style.set_corner_radius_all(54); button.add_theme_stylebox_override(state,style)
+	button.pressed.connect(callback); return button
+
+static func clean_layout(container: VBoxContainer) -> void:
+	for child in container.get_children():
+		if child is Label:
+			if child.text.begins_with("ВАША РУКА") or child.text.begins_with("ВАШИ КАРТЫ"):
+				child.text = ""; child.custom_minimum_size.y = 44
+			else: child.add_theme_font_size_override("font_size", 25)
+		if child is HBoxContainer and child.name != "GameHeader":
+			for button in child.get_children():
+				if button is Button and button.text in ["Меню", "Правила"]:
+					child.remove_child(button); button.queue_free()
+			if child.get_child_count() == 0: child.custom_minimum_size.y = 0
+
+static func shake_card(card: Control) -> void:
+	if card.get_meta("shaking", false): return
+	card.set_meta("shaking", true)
+	var angle := card.rotation_degrees
+	var tween := card.create_tween()
+	for offset in [-5.0, 5.0, -4.0, 3.0, 0.0]: tween.tween_property(card, "rotation_degrees", angle + offset, 0.055)
+	tween.tween_callback(func(): card.set_meta("shaking", false))
+
+static func card_less(a: String, b: String, trump := "") -> bool:
+	var suits := ["♣", "♦", "♥", "♠"]
+	var ranks := ["6", "7", "8", "9", "10", "В", "Д", "К", "Т"]
+	var suit_a := 4 if suit_of(a) == trump else suits.find(suit_of(a))
+	var suit_b := 4 if suit_of(b) == trump else suits.find(suit_of(b))
+	if suit_a != suit_b: return suit_a < suit_b
+	return ranks.find(rank_of(a)) < ranks.find(rank_of(b))

@@ -14,13 +14,14 @@ var content: VBoxContainer
 func _ready() -> void: show_setup()
 func mode_name() -> String: return "Короткий Кинг" if king_mode == "short" else "Длинный Кинг"
 func screen() -> void:
+	theme = CardVisuals.make_theme()
 	for child in get_children(): remove_child(child); child.queue_free()
 	add_child(CardVisuals.make_background()); var margin := MarginContainer.new(); margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side in ["left","right"]: margin.add_theme_constant_override("margin_"+side,42)
 	margin.add_theme_constant_override("margin_top",18); margin.add_theme_constant_override("margin_bottom",18); add_child(margin)
 	content=VBoxContainer.new(); content.add_theme_constant_override("separation",14); content.alignment=BoxContainer.ALIGNMENT_CENTER; margin.add_child(content)
 func heading(text:String, sub:="") -> void:
-	var p:=PanelContainer.new(); var s:=StyleBoxFlat.new(); s.bg_color=Color(0.025,0.07,0.06,0.9); s.border_color=Color("9c7a35"); s.border_width_bottom=3; s.set_corner_radius_all(22); p.add_theme_stylebox_override("panel",s); content.add_child(p)
+	var p:=PanelContainer.new(); var s:=StyleBoxFlat.new(); s.bg_color=Color("314658"); s.border_color=Color("9c7a35"); s.border_width_bottom=3; s.set_corner_radius_all(22); p.add_theme_stylebox_override("panel",s); content.add_child(p)
 	var v:=VBoxContainer.new(); p.add_child(v); var l:=Label.new(); l.text=text; l.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; l.add_theme_font_size_override("font_size",56); v.add_child(l)
 	if sub: var n:=Label.new(); n.text=sub; n.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; n.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; n.modulate=Color("bcd6ca"); v.add_child(n)
 func button(text:String, call:Callable) -> Button:
@@ -91,10 +92,11 @@ func add_contract_banner() -> void:
 	var style:=StyleBoxFlat.new(); style.bg_color=Color("442431") if not positive else Color("164f3b"); style.border_color=Color("f2cf72"); style.set_border_width_all(3); style.set_corner_radius_all(22); panel.add_theme_stylebox_override("panel",style); content.add_child(panel)
 	var label:=Label.new(); label.text=contract_name(("+" if positive else "-")+contract).to_upper(); label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER; label.add_theme_font_size_override("font_size",48); label.add_theme_color_override("font_color",Color("fff0b0")); panel.add_child(label)
 func add_hand() -> void:
+	hands[0].sort_custom(CardVisuals.card_less)
 	var area:=Control.new(); area.custom_minimum_size.y=300; content.add_child(area); var total:=hands[0].size(); if total==0:return
-	var step:float=110.0; var start:float=(996-(154+step*(total-1)))/2
+	var step:float=0.0 if total == 1 else minf(110.0, (996.0-154.0)/(total-1)); var start:float=(996-(154+step*(total-1)))/2
 	for i in total:
-		var card:String=hands[0][i]; var b:=Button.new(); CardVisuals.decorate_button(b,card,Vector2(154,208),true); b.position=Vector2(start+i*step,30+minf(abs(i-(total-1)/2.0)*5,45)); b.pressed.connect(play.bind(0,card)); area.add_child(b)
+		var card:String=hands[0][i]; var b:=Button.new(); CardVisuals.decorate_button(b,card,Vector2(154,208),true); b.position=Vector2(start+i*step,45); b.pressed.connect(attempt_hand_card.bind(card,b)); area.add_child(b)
 func legal(player:int,card:String) -> bool:
 	if player!=turn or table.size()>=4:return false
 	if table.is_empty():
@@ -191,3 +193,13 @@ func card_less(a:String,b:String)->bool:
 	var suit_a:=SUITS.find(suit_of(a)); var suit_b:=SUITS.find(suit_of(b))
 	if suit_a!=suit_b:return suit_a<suit_b
 	return value(a)<value(b)
+
+func attempt_hand_card(card: String, view: Control) -> void:
+	if not legal(0, card):
+		CardVisuals.shake_card(view)
+		return
+	play(0, card)
+
+func apply_game_layout() -> void:
+	if is_instance_valid(content):
+		CardVisuals.clean_layout(content)
