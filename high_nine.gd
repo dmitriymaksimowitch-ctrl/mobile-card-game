@@ -23,6 +23,7 @@ var content: VBoxContainer
 func _ready() -> void: show_setup()
 
 func screen() -> void:
+	theme = CardVisuals.make_theme()
 	for child in get_children():
 		remove_child(child); child.queue_free()
 	var bg := CardVisuals.make_background(); add_child(bg)
@@ -33,7 +34,7 @@ func screen() -> void:
 	content = VBoxContainer.new(); content.add_theme_constant_override("separation", 18); content.alignment = BoxContainer.ALIGNMENT_CENTER; margin.add_child(content)
 
 func heading(text: String, sub := "") -> void:
-	var header := PanelContainer.new(); var header_style := StyleBoxFlat.new(); header_style.bg_color = Color(0.025,0.07,0.06,0.88)
+	var header := PanelContainer.new(); var header_style := StyleBoxFlat.new(); header_style.bg_color = Color("314658")
 	header_style.border_color = Color("9c7a35"); header_style.border_width_bottom = 3; header_style.set_corner_radius_all(22)
 	header_style.content_margin_top = 14; header_style.content_margin_bottom = 14; header.add_theme_stylebox_override("panel", header_style); content.add_child(header)
 	var column := VBoxContainer.new(); column.add_theme_constant_override("separation", 4); header.add_child(column)
@@ -103,7 +104,7 @@ func draw_game() -> void:
 	screen(); var game_note := Label.new(); game_note.text = "Девятка вверх"; game_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; game_note.add_theme_font_size_override("font_size", 28); game_note.modulate = Color("f4dfaa"); content.add_child(game_note)
 	var status := Label.new(); status.text = message; status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER; status.custom_minimum_size.y = 58; status.modulate = Color("f4cf74")
-	var status_style := StyleBoxFlat.new(); status_style.bg_color = Color(0.02,0.10,0.08,0.88)
+	var status_style := StyleBoxFlat.new(); status_style.bg_color = Color("314658")
 	status_style.border_color = Color("9c7a35"); status_style.set_border_width_all(2); status_style.set_corner_radius_all(18)
 	status.add_theme_stylebox_override("normal", status_style); content.add_child(status)
 	add_pile_view()
@@ -200,12 +201,13 @@ func add_pile_view() -> void:
 			if action_animation.get("kind", "") == "play" and pile[i] in animated_cards:
 				var source := Vector2(480, 520) if action_animation.get("player", 0) == 0 else Vector2(480, -190)
 				card.position = source; card.scale = Vector2(0.62, 0.62); card.modulate.a = 0.25
-				animate_move(card, home, -4 + offset * 2, 0.95, animated_cards.find(pile[i]) * 0.13)
+				animate_move(card, home, -4 + offset * 2, 0.3, animated_cards.find(pile[i]) * 0.04)
 		var amount := Label.new(); amount.text = "%d карт в стопке" % pile.size(); amount.position = Vector2(380, 335)
 		amount.size = Vector2(240, 40); amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; amount.vertical_alignment = VERTICAL_ALIGNMENT_CENTER; felt.add_child(amount)
 	CardVisuals.add_table_seats(felt, player_names(), hand_counts(), turn, Vector2(996, 420))
 
 func add_hand() -> void:
+	hands[0].sort_custom(CardVisuals.card_less)
 	var area := Control.new(); area.custom_minimum_size.y = 290; area.clip_contents = false; content.add_child(area)
 	var total := hands[0].size()
 	if total == 0: return
@@ -214,24 +216,24 @@ func add_hand() -> void:
 	var start_x: float = (available - (card_size.x + step * (total - 1))) / 2.0
 	for i in total:
 		var card: String = hands[0][i]; var distance := i - (total - 1) / 2.0
-		var home := Vector2(start_x + i * step, 15 + minf(abs(distance) * 4, 52.0))
-		var face := face_card(card, card_size); face.position = home; face.rotation_degrees = distance * 2.2; face.z_index = i
-		face.mouse_entered.connect(lift_hand_card.bind(face, home, distance * 2.2))
-		face.mouse_exited.connect(lower_hand_card.bind(face, home, distance * 2.2, i))
+		var home := Vector2(start_x + i * step, 45)
+		var face := face_card(card, card_size); face.position = home; face.rotation_degrees = 0.0; face.z_index = i
+		face.mouse_entered.connect(lift_hand_card.bind(face, home, 0.0))
+		face.mouse_exited.connect(lower_hand_card.bind(face, home, 0.0, i))
 		face.pressed.connect(attempt_player_card.bind(card, face))
 		area.add_child(face)
 		var received: Array = action_animation.get("cards", [])
 		if action_animation.get("kind", "") == "take" and action_animation.get("player", -1) == 0 and card in received:
 			face.position = Vector2(470, -500); face.scale = Vector2(0.55, 0.55); face.modulate.a = 0.2
-			animate_move(face, home, distance * 2.2, 0.95, received.find(card) * 0.14)
+			animate_move(face, home, 0.0, 0.3, received.find(card) * 0.04)
 
 func lift_hand_card(card: Control, home: Vector2, angle: float) -> void:
 	card.z_index = 1000
 	var tween := create_tween().set_parallel(true)
 	tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.tween_property(card, "position", home + Vector2(0, -105), 0.28)
+	tween.tween_property(card, "position", home + Vector2(0, -30), 0.28)
 	tween.tween_property(card, "rotation_degrees", angle * 0.1, 0.28)
-	tween.tween_property(card, "scale", Vector2(1.2, 1.2), 0.28)
+	tween.tween_property(card, "scale", Vector2(1.04, 1.04), 0.28)
 
 func lower_hand_card(card: Control, home: Vector2, angle: float, layer: int) -> void:
 	card.z_index = layer
@@ -284,15 +286,7 @@ func choose_quartet(card: String, play_all: bool, shade: Control, center: Contro
 	play_card(0, card, play_all)
 
 func reject_card(card: Control) -> void:
-	var home := card.position
-	var tween := create_tween()
-	tween.tween_property(card, "position:x", home.x - 13, 0.055)
-	tween.tween_property(card, "position:x", home.x + 13, 0.07)
-	tween.tween_property(card, "position:x", home.x - 8, 0.06)
-	tween.tween_property(card, "position:x", home.x, 0.055)
-	var flash := create_tween()
-	flash.tween_property(card, "modulate", Color("ff7777"), 0.08)
-	flash.tween_property(card, "modulate", Color.WHITE, 0.18)
+	CardVisuals.shake_card(card)
 
 func face_card(card: String, size: Vector2) -> Button:
 	var b := Button.new(); CardVisuals.decorate_button(b, card, size)
@@ -346,7 +340,13 @@ func after_turn(player: int) -> void:
 			fast_turns = 0
 	var active := active_players()
 	if active.size() == 1:
-		finish_order.append(active[0]); finish_game(); return
+		finish_order.append(active[0])
+		turn = -1
+		draw_game()
+		var stamp := revision
+		await get_tree().create_timer(0.9).timeout
+		if stamp == revision: finish_game()
+		return
 	turn = next_active(player)
 	if fast_mode:
 		fast_turns += 1
@@ -432,3 +432,7 @@ func player_name(p: int) -> String: return player_names()[p]
 func rank_of(card: String) -> String: return card.left(card.length() - 1)
 func suit_of(card: String) -> String: return card.right(1)
 func value(card: String) -> int: return RANKS.find(rank_of(card))
+
+func apply_game_layout() -> void:
+	if is_instance_valid(content):
+		CardVisuals.clean_layout(content)

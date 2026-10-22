@@ -26,6 +26,7 @@ func _ready() -> void:
 	show_setup()
 
 func screen() -> void:
+	theme = CardVisuals.make_theme()
 	for child in get_children():
 		remove_child(child)
 		child.queue_free()
@@ -45,7 +46,7 @@ func screen() -> void:
 func heading(text: String, sub := "") -> void:
 	var panel := PanelContainer.new()
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.025, 0.07, 0.06, 0.9)
+	style.bg_color = Color("314658")
 	style.border_color = Color("9c7a35")
 	style.border_width_bottom = 3
 	style.set_corner_radius_all(22)
@@ -210,12 +211,17 @@ func add_table() -> void:
 	CardVisuals.add_table_seats(felt, player_names(), hand_counts(), turn, Vector2(996, 410))
 
 func card_back() -> Label:
-	var back := Label.new(); back.text = "✦  ✦\n  ✦\n✦  ✦"; back.size = Vector2(128, 176)
+	var back := Label.new(); back.text = ""; back.size = Vector2(128, 176)
 	back.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; back.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	back.add_theme_font_size_override("font_size", 26); back.add_theme_color_override("font_color", Color("b9d8ff"))
 	back.add_theme_stylebox_override("normal", CardVisuals.back_style()); return back
 
 func add_hand() -> void:
+	var selected_cards: Array[String] = []
+	for index in selected: selected_cards.append(hands[0][index])
+	hands[0].sort_custom(CardVisuals.card_less)
+	selected.clear()
+	for card in selected_cards: selected.append(hands[0].find(card))
 	var area := Control.new(); area.custom_minimum_size.y = 280; area.clip_contents = false; content.add_child(area)
 	if hands[0].is_empty(): return
 	var size := Vector2(154, 208)
@@ -440,3 +446,7 @@ func hand_counts() -> Array[int]:
 	return result
 func player_name(player: int) -> String: return player_names()[player]
 func rank_of(card: String) -> String: return card.left(card.length() - 1)
+
+func apply_game_layout() -> void:
+	if is_instance_valid(content):
+		CardVisuals.clean_layout(content)
