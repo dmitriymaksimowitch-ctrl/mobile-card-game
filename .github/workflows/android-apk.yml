@@ -87,7 +87,7 @@ jobs:
           from pathlib import Path
           run = int(os.environ["GITHUB_RUN_NUMBER"])
           code = 1000 + run
-          name = f"1.0.1.{run}"
+          name = f"1.0.2.{run}"
           cfg = Path("export_presets.cfg")
           content = cfg.read_text()
           content = re.sub(r'(?m)^version/code=\d+$', f'version/code={code}', content)
