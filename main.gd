@@ -356,13 +356,15 @@ func draw_circle_table() -> void:
 	var center := Vector2(498, 378)
 	if not deck.is_empty():
 		var trump_card := card_label(deck[0])
-		trump_card.position = center + Vector2(-88, 2)
+		# Circular Durak uses the same tightly stacked deck with a sideways trump.
+		trump_card.position = center + Vector2(0, -88)
 		trump_card.rotation_degrees = 90
 		trump_card.pivot_offset = trump_card.size / 2.0
+		trump_card.z_index = 1
 		felt.add_child(trump_card)
-		for layer in 3:
+		for layer in 4:
 			var back := make_card_back()
-			back.position = center + Vector2(-64 + layer * 4, -88 - layer * 4)
+			back.position = center + Vector2(-66 + layer * 2, -88 - layer * 2)
 			back.z_index = 3 + layer
 			felt.add_child(back)
 	if circle_drawn != "":
@@ -482,9 +484,9 @@ func make_opponent_hand(player: int) -> PanelContainer:
 			back.modulate.a = 0.0
 			var tween := create_tween().set_parallel(true)
 			tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-			tween.tween_property(back, "position", home, 0.52).set_delay(index * 0.09)
-			tween.tween_property(back, "scale", Vector2.ONE, 0.52).set_delay(index * 0.09)
-			tween.tween_property(back, "modulate:a", 1.0, 0.36).set_delay(index * 0.09)
+			tween.tween_property(back, "position", home, 1.05).set_delay(index * 0.14)
+			tween.tween_property(back, "scale", Vector2.ONE, 1.05).set_delay(index * 0.14)
+			tween.tween_property(back, "modulate:a", 1.0, 0.9).set_delay(index * 0.14)
 	return seat
 
 func make_small_card_back() -> Label:
@@ -509,9 +511,9 @@ func add_hand_fan() -> void:
 	box.add_child(area)
 	var card_count := hands[0].size()
 	if card_count == 0: return
-	var card_size := Vector2(174, 250)
+	var card_size := CardVisuals.fitted_hand_card_size(card_count, Vector2(174, 250))
 	var available := 996.0
-	var step: float = 0.0 if card_count == 1 else minf(118.0, (available - card_size.x) / (card_count - 1))
+	var step: float = CardVisuals.hand_step(card_count, card_size)
 	var total_width: float = card_size.x + step * (card_count - 1)
 	var start_x: float = (available - total_width) / 2.0
 	for index in card_count:
@@ -520,7 +522,7 @@ func add_hand_fan() -> void:
 		var home := Vector2(start_x + index * step, 45.0)
 		var angle: float = 0.0
 		var playable := true
-		var b := make_hand_card(card, playable)
+		var b := make_hand_card(card, playable, card_size)
 		b.position = home
 		b.rotation_degrees = angle
 		b.z_index = index
@@ -530,20 +532,20 @@ func add_hand_fan() -> void:
 		area.add_child(b)
 		if deal_animation_pending and card in newly_drawn[0]:
 			# Карта летит от видимой колоды к руке игрока.
-			b.position = Vector2(50, -465)
+			b.position = Vector2(100, -465)
 			b.rotation_degrees = 90
 			b.scale = Vector2(0.42, 0.42)
 			b.modulate.a = 0.0
 			var tween := create_tween().set_parallel(true)
 			tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-			tween.tween_property(b, "position", home, 0.35).set_delay(index * 0.04)
-			tween.tween_property(b, "rotation_degrees", angle, 0.35).set_delay(index * 0.04)
-			tween.tween_property(b, "scale", Vector2.ONE, 0.35).set_delay(index * 0.04)
-			tween.tween_property(b, "modulate:a", 1.0, 0.5).set_delay(index * 0.04)
+			tween.tween_property(b, "position", home, 0.95).set_delay(index * 0.10)
+			tween.tween_property(b, "rotation_degrees", angle, 0.95).set_delay(index * 0.10)
+			tween.tween_property(b, "scale", Vector2.ONE, 0.95).set_delay(index * 0.10)
+			tween.tween_property(b, "modulate:a", 1.0, 0.85).set_delay(index * 0.10)
 
-func make_hand_card(card: String, playable: bool) -> Button:
+func make_hand_card(card: String, playable: bool, card_size: Vector2) -> Button:
 	var b := Button.new()
-	CardVisuals.decorate_button(b, card, Vector2(174, 250), playable)
+	CardVisuals.decorate_button(b, card, card_size, playable)
 	b.modulate = Color.WHITE
 	return b
 
@@ -593,29 +595,31 @@ func add_playing_table() -> void:
 
 	var deck_title := Label.new()
 	deck_title.text = "КОЛОДА • %d" % deck.size()
-	deck_title.position = Vector2(15, -195)
+	deck_title.position = Vector2(18, -243)
 	deck_title.add_theme_font_size_override("font_size", 25)
 	deck_title.modulate = Color("b8dacb")
 	felt.add_child(deck_title)
 
 	if not deck.is_empty():
 		var trump_card := card_label((RANKS[0] + "♦") if durak_variant == "japanese" else deck[0])
-		trump_card.position = Vector2(62, -95)
-		trump_card.scale = Vector2(0.58, 0.58)
+		# A single compact deck: backs only 2 px apart. Trump is horizontal
+		# beneath it, exposing roughly half of the face-up card on the right.
+		trump_card.position = Vector2(88, -204)
 		trump_card.rotation_degrees = 90
 		trump_card.pivot_offset = trump_card.size / 2.0
 		trump_card.z_index = 1
+		trump_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		felt.add_child(trump_card)
-		for layer in 3:
+		for layer in 4:
 			var back := make_card_back()
-			back.position = Vector2(18 + layer * 3, -152 - layer * 3)
-			back.scale = Vector2(0.58, 0.58)
+			back.position = Vector2(22 + layer * 2, -204 - layer * 2)
 			back.z_index = 3 + layer
+			back.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			felt.add_child(back)
 	else:
 		var empty_deck := Label.new()
 		empty_deck.text = "Колода\nпуста"
-		empty_deck.position = Vector2(18, -170)
+		empty_deck.position = Vector2(22, -204)
 		empty_deck.size = Vector2(128, 176)
 		empty_deck.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty_deck.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -678,10 +682,10 @@ func animate_card_to_table(card: Control, destination: Vector2, angle: float, pl
 	card.z_index = 100
 	var tween := create_tween().set_parallel(true)
 	tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tween.tween_property(card, "position", destination, 0.3)
-	tween.tween_property(card, "rotation_degrees", angle, 0.3)
-	tween.tween_property(card, "scale", Vector2.ONE, 0.3)
-	tween.tween_property(card, "modulate:a", 1.0, 0.22)
+	tween.tween_property(card, "position", destination, 1.05)
+	tween.tween_property(card, "rotation_degrees", angle, 1.05)
+	tween.tween_property(card, "scale", Vector2.ONE, 1.05)
+	tween.tween_property(card, "modulate:a", 1.0, 0.95)
 	tween.chain().tween_property(card, "z_index", final_layer, 0.0)
 
 func make_card_back() -> Label:
@@ -819,7 +823,7 @@ func finish_round(taking: bool) -> void:
 	revision += 1
 	var stamp := revision
 	draw_table()
-	await get_tree().create_timer(0.9).timeout
+	await get_tree().create_timer(1.2).timeout
 	if stamp != revision or phase != "resolving": return
 	var next := defender
 	if taking:
@@ -869,7 +873,7 @@ func schedule_bot() -> void:
 	bot_turn(revision)
 
 func bot_turn(stamp: int) -> void:
-	await get_tree().create_timer(0.5).timeout
+	await get_tree().create_timer(1.1).timeout
 	if stamp != revision or actor == 0 or phase in ["menu", "over", "resolving"]: return
 	var choices: Array[String] = []
 	for card in hands[actor]:
