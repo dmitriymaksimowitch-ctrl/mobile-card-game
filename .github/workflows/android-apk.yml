@@ -130,14 +130,19 @@ jobs:
           set -euo pipefail
           tools="$ANDROID_HOME/build-tools/35.0.0"
           "$tools/zipalign" -f -p 4 build/card-club-unsigned.apk build/card-club-aligned.apk
+          # apksigner may read the same password file twice; the second read
+          # reaches EOF. Supply it via a short-lived process environment instead.
+          CARD_CLUB_KEY_PASS="$(tr -d '\r\n' < "$RUNNER_TEMP/card-club-signing/password.txt")"
+          export CARD_CLUB_KEY_PASS
           "$tools/apksigner" sign \
             --ks "$RUNNER_TEMP/card-club-signing/card-club-release.p12" \
             --ks-type PKCS12 \
             --ks-key-alias cardclub \
-            --ks-pass "file:$RUNNER_TEMP/card-club-signing/password.txt" \
-            --key-pass "file:$RUNNER_TEMP/card-club-signing/password.txt" \
+            --ks-pass env:CARD_CLUB_KEY_PASS \
+            --key-pass env:CARD_CLUB_KEY_PASS \
             --out build/card-club-latest.apk \
             build/card-club-aligned.apk
+          unset CARD_CLUB_KEY_PASS
           "$tools/apksigner" verify --verbose --print-certs build/card-club-latest.apk > build/signature-check.txt
           # Certificate of the user's existing 1.0.0 APK. Do not release if it changes.
           grep -Fi '9c1f5edc34926635ea15230672d076248948d85f2bcc7d954d1bd06d28058efa' build/signature-check.txt
