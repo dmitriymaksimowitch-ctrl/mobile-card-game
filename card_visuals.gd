@@ -61,6 +61,51 @@ static func back_style(_accent := Color("274454")) -> StyleBoxFlat:
 	style.shadow_color = Color("12202e"); style.shadow_size = 3
 	return style
 
+# Single, unscaled deck view. The rotated trump's bounding rectangle is
+# [card_width - card_height / 2, card_width + card_height / 2] on X:
+# exactly half its long side is beneath the card backs.
+static func add_compact_deck(table: Control, at: Vector2, trump_face: String, card_size: Vector2, card_count: int) -> Control:
+	var deck_display := Control.new()
+	deck_display.name = "DeckDisplay"
+	deck_display.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	deck_display.clip_contents = false
+	deck_display.position = at
+	deck_display.size = Vector2(card_size.x + card_size.y / 2.0 + 12.0, card_size.y + 12.0)
+	table.add_child(deck_display)
+
+	var caption := Label.new()
+	caption.name = "DeckCaption"
+	caption.text = "КОЛОДА • %d" % card_count
+	caption.position = Vector2(0, -53)
+	caption.size = Vector2(300, 50)
+	caption.add_theme_font_size_override("font_size", 38)
+	caption.modulate = Color("d4e8df")
+	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	deck_display.add_child(caption)
+
+	var trump_card := Label.new()
+	trump_card.name = "TrumpCard"
+	decorate_label(trump_card, trump_face, card_size)
+	trump_card.pivot_offset = card_size / 2.0
+	trump_card.position = Vector2(card_size.x / 2.0, 0)
+	trump_card.rotation_degrees = 90
+	trump_card.z_index = 1
+	trump_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	deck_display.add_child(trump_card)
+
+	for layer in 4:
+		var back := Label.new()
+		back.name = "DeckBack%d" % layer
+		back.text = ""
+		back.size = card_size
+		back.custom_minimum_size = card_size
+		back.position = Vector2(float(layer) * 2.0, -float(layer) * 2.0)
+		back.add_theme_stylebox_override("normal", back_style())
+		back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		back.z_index = layer + 2
+		deck_display.add_child(back)
+	return deck_display
+
 static func make_background() -> TextureRect:
 	if cached_background == null:
 		var gradient := Gradient.new(); gradient.colors = PackedColorArray([Color("314658"), Color("243747")])
@@ -73,8 +118,8 @@ static func make_background() -> TextureRect:
 
 static func make_theme() -> Theme:
 	if cached_theme != null: return cached_theme
-	cached_theme = Theme.new(); cached_theme.default_font = preload("res://fonts/Club-Bold.ttf"); cached_theme.default_font_size = 30
-	cached_theme.set_font_size("font_size", "Button", 32)
+	cached_theme = Theme.new(); cached_theme.default_font = preload("res://fonts/Club-Bold.ttf"); cached_theme.default_font_size = 40
+	cached_theme.set_font_size("font_size", "Button", 39)
 	cached_theme.set_color("font_color", "Label", Color("f7f3e8"))
 	for state in ["font_color", "font_hover_color", "font_pressed_color"]: cached_theme.set_color(state, "Button", Color("243747"))
 	for state in ["normal", "hover", "pressed", "disabled"]:
@@ -97,7 +142,7 @@ static func add_table_seats(table: Control, names: Array[String], card_counts: A
 	var frame := MarginContainer.new(); frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	frame.add_theme_constant_override("margin_left", 80); frame.add_theme_constant_override("margin_right", 80)
 	var index := table.get_index(); parent.add_child(frame); parent.move_child(frame, index); table.reparent(frame, false)
-	var gap := Control.new(); gap.custom_minimum_size.y = 220
+	var gap := Control.new(); gap.custom_minimum_size.y = 320
 	parent.add_child(gap); parent.move_child(gap, frame.get_index())
 	# Adapt older fixed-coordinate layouts to the actual center of the table.
 	if table.get_node_or_null("PlayedCards") == null:
@@ -110,7 +155,7 @@ static func add_table_seats(table: Control, names: Array[String], card_counts: A
 		for child in existing:
 			if child is Panel or (child is Label and child.text == "♣   ♦   ♥   ♠"):
 				table.remove_child(child); child.queue_free()
-			else: child.reparent(center, false)
+			elif child.name != "DeckDisplay": child.reparent(center, false)
 	var mark := Label.new(); mark.text = "♠"; mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	mark.add_theme_font_size_override("font_size", 380); mark.add_theme_color_override("font_color", Color("15596a"))
 	mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; mark.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -124,7 +169,7 @@ static func add_table_seats(table: Control, names: Array[String], card_counts: A
 		style.content_margin_left = 14; style.content_margin_right = 14; seat.add_theme_stylebox_override("panel", style)
 		var label := Label.new(); label.text = names[player].to_upper()
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		label.add_theme_font_size_override("font_size", 28); label.add_theme_color_override("font_color", Color("344858")); seat.add_child(label)
+		label.add_theme_font_size_override("font_size", 36); label.add_theme_color_override("font_color", Color("344858")); seat.add_child(label)
 		table.add_child(seat); seat.z_index = 80
 		if side:
 			seat.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT if player == 1 else Control.PRESET_CENTER_RIGHT)
@@ -159,7 +204,7 @@ static func add_game_header(container: VBoxContainer, game: Control) -> void:
 	row.add_child(round_button("‹", back))
 	var name := Label.new(); name.text = game.durak_name() if main_game else "КАРТОЧНЫЙ КЛУБ"
 	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL; name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER; name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; name.add_theme_font_size_override("font_size", 28); row.add_child(name)
+	name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER; name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; name.add_theme_font_size_override("font_size", 42); row.add_child(name)
 	row.add_child(round_button("?", help))
 
 static func round_button(text: String, callback: Callable) -> Button:
@@ -174,7 +219,7 @@ static func clean_layout(container: VBoxContainer) -> void:
 		if child is Label:
 			if child.text.begins_with("ВАША РУКА") or child.text.begins_with("ВАШИ КАРТЫ"):
 				child.text = ""; child.custom_minimum_size.y = 44
-			else: child.add_theme_font_size_override("font_size", 25)
+			else: child.add_theme_font_size_override("font_size", 38)
 		if child is HBoxContainer and child.name != "GameHeader":
 			for button in child.get_children():
 				if button is Button and button.text in ["Меню", "Правила"]:
