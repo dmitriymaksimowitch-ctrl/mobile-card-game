@@ -111,7 +111,7 @@ func game_menu_row(text: String, play_call: Callable, rules_call: Callable) -> v
 func show_menu() -> void:
 	revision += 1
 	phase = "menu"
-	screen(); title("Карточный клуб", "Версия 1.0.0 • выберите игру")
+	screen(); title("Карточный клуб", "Версия 1.0.1 • выберите игру")
 	game_menu_row("Простой дурак", choose_durak_variant.bind("simple"), show_durak_rules.bind("simple"))
 	game_menu_row("Подкидной дурак", choose_durak_variant.bind("podkidnoy"), show_durak_rules.bind("podkidnoy"))
 	game_menu_row("Переводной дурак", choose_durak_variant.bind("perevodnoy"), show_durak_rules.bind("perevodnoy"))
@@ -543,7 +543,7 @@ func add_hand_fan() -> void:
 			tween.tween_property(b, "scale", Vector2.ONE, 0.95).set_delay(index * 0.10)
 			tween.tween_property(b, "modulate:a", 1.0, 0.85).set_delay(index * 0.10)
 
-func make_hand_card(card: String, playable: bool, card_size: Vector2) -> Button:
+func make_hand_card(card: String, playable: bool, card_size: Vector2 = Vector2(174, 250)) -> Button:
 	var b := Button.new()
 	CardVisuals.decorate_button(b, card, card_size, playable)
 	b.modulate = Color.WHITE

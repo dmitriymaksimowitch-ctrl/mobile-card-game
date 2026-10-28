@@ -1,0 +1,205 @@
+name: Build Card Club Android APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: Build and test Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+
+    steps:
+      - name: Checkout game
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android build tools
+        shell: bash
+        run: |
+          sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Godot 4.7.2 and export templates
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.2
+          use-dotnet: false
+          include-templates: true
+
+      - name: Import game resources
+        shell: bash
+        run: godot --headless --path . --import
+
+      - name: Configure Godot Android paths
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+          settings = Path.home() / ".config/godot/editor_settings-4.7.tres"
+          settings.parent.mkdir(parents=True, exist_ok=True)
+          content = settings.read_text() if settings.exists() else '[gd_resource type="EditorSettings" format=3]\n\n[resource]\n'
+          if "[resource]" not in content:
+              content += "\n[resource]\n"
+          for key, value in (
+              ("export/android/android_sdk_path", os.environ["ANDROID_HOME"]),
+              ("export/android/java_sdk_path", os.environ["JAVA_HOME"])
+          ):
+              line = f'{key} = "{value}"'
+              if re.search(rf"(?m)^{re.escape(key)}\s*=", content):
+                  content = re.sub(rf"(?m)^{re.escape(key)}\s*=.*$", lambda _: line, content)
+              else:
+                  content += "\n" + line
+          settings.write_text(content)
+          print("Configured Android SDK and Java SDK for Godot.")
+          PY
+
+      - name: Run release regression checks
+        shell: bash
+        run: godot --headless --path . --script tests/release_checks.gd
+
+      - name: Set monotonically increasing Android version
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+          run = int(os.environ["GITHUB_RUN_NUMBER"])
+          code = 1000 + run
+          name = f"1.0.1.{run}"
+          cfg = Path("export_presets.cfg")
+          content = cfg.read_text()
+          content = re.sub(r'(?m)^version/code=\d+$', f'version/code={code}', content)
+          content = re.sub(r'(?m)^version/name="[^"]+"$', f'version/name="{name}"', content)
+          cfg.write_text(content)
+          print(f"Android build version: {name} ({code})")
+          PY
+
+      - name: Export unsigned release APK
+        shell: bash
+        run: |
+          mkdir -p build
+          godot --headless --path . --export-release Android build/card-club-unsigned.apk
+          test -s build/card-club-unsigned.apk
+
+      - name: Restore private signing key if configured
+        id: signing
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          CARD_CLUB_SIGNING_ARCHIVE_B64: ${{ secrets.CARD_CLUB_SIGNING_ARCHIVE_B64 }}
+        shell: bash
+        run: |
+          if [[ -z "$CARD_CLUB_SIGNING_ARCHIVE_B64" ]]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No release signing secret configured yet. Unsigned APK is available as a CI artifact only."
+            exit 0
+          fi
+          umask 077
+          mkdir -p "$RUNNER_TEMP/card-club-signing"
+          printf '%s' "$CARD_CLUB_SIGNING_ARCHIVE_B64" | base64 -d > "$RUNNER_TEMP/card-club-signing/recovery.zip"
+          unzip -q "$RUNNER_TEMP/card-club-signing/recovery.zip" -d "$RUNNER_TEMP/card-club-signing"
+          test -s "$RUNNER_TEMP/card-club-signing/card-club-release.p12"
+          test -s "$RUNNER_TEMP/card-club-signing/password.txt"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Sign and verify installable APK
+        if: steps.signing.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tools="$ANDROID_HOME/build-tools/35.0.0"
+          "$tools/zipalign" -f -p 4 build/card-club-unsigned.apk build/card-club-aligned.apk
+          # apksigner may read the same password file twice; the second read
+          # reaches EOF. Supply it via a short-lived process environment instead.
+          CARD_CLUB_KEY_PASS="$(tr -d '\r\n' < "$RUNNER_TEMP/card-club-signing/password.txt")"
+          export CARD_CLUB_KEY_PASS
+          "$tools/apksigner" sign \
+            --ks "$RUNNER_TEMP/card-club-signing/card-club-release.p12" \
+            --ks-type PKCS12 \
+            --ks-key-alias cardclub \
+            --ks-pass env:CARD_CLUB_KEY_PASS \
+            --key-pass env:CARD_CLUB_KEY_PASS \
+            --out build/card-club-latest.apk \
+            build/card-club-aligned.apk
+          unset CARD_CLUB_KEY_PASS
+          "$tools/apksigner" verify --verbose --print-certs build/card-club-latest.apk > build/signature-check.txt
+          # Certificate of the user's existing 1.0.0 APK. Do not release if it changes.
+          grep -Fi '9c1f5edc34926635ea15230672d076248948d85f2bcc7d954d1bd06d28058efa' build/signature-check.txt
+          "$tools/aapt" dump badging build/card-club-latest.apk | grep -F "package: name='org.cardclub.mobilegame.v1'"
+          "$tools/zipalign" -c -p 4 build/card-club-latest.apk
+
+      # PR builds also provide the unsigned, already zip-aligned APK and a
+      # standalone official apksigner JAR for offline signing by the owner.
+      # The key is never copied into artifacts or the repository.
+      - name: Prepare aligned APK and signing tool for owner
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -f -p 4 build/card-club-unsigned.apk build/card-club-aligned.apk
+          mkdir -p build/signing-tool
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" build/signing-tool/apksigner.jar
+
+      - name: Upload unsigned APK and official signing tool
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: card-club-offline-signing-input
+          path: |
+            build/card-club-aligned.apk
+            build/signing-tool/apksigner.jar
+          retention-days: 7
+
+      - name: Upload signed Android APK
+        if: steps.signing.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: card-club-signed-apk
+          path: build/card-club-latest.apk
+          retention-days: 30
+
+      - name: Upload unsigned APK for diagnostic builds
+        if: steps.signing.outputs.ready != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: card-club-unsigned-NOT-INSTALLABLE
+          path: build/card-club-unsigned.apk
+          retention-days: 7
+
+      - name: Publish downloadable release for Android phones
+        if: steps.signing.outputs.ready == 'true' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Card Club Android #${{ github.run_number }}
+          make_latest: true
+          prerelease: false
+          body: |
+            Android APK signed with the same key as Card Club 1.0.0.
+            Install over the existing Card Club 1 app without uninstalling it.
+          files: build/card-club-latest.apk
+
+      - name: Remove private signing material
+        if: always()
+        shell: bash
+        run: rm -rf "$RUNNER_TEMP/card-club-signing"
