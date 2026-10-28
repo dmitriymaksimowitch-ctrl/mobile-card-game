@@ -111,7 +111,7 @@ func game_menu_row(text: String, play_call: Callable, rules_call: Callable) -> v
 func show_menu() -> void:
 	revision += 1
 	phase = "menu"
-	screen(); title("Карточный клуб", "Версия 1.0.1 • выберите игру")
+	screen(); title("Карточный клуб", "Версия 1.0.2 • выберите игру")
 	game_menu_row("Простой дурак", choose_durak_variant.bind("simple"), show_durak_rules.bind("simple"))
 	game_menu_row("Подкидной дурак", choose_durak_variant.bind("podkidnoy"), show_durak_rules.bind("podkidnoy"))
 	game_menu_row("Переводной дурак", choose_durak_variant.bind("perevodnoy"), show_durak_rules.bind("perevodnoy"))
@@ -355,18 +355,7 @@ func draw_circle_table() -> void:
 	box.add_child(felt)
 	var center := Vector2(498, 378)
 	if not deck.is_empty():
-		var trump_card := card_label(deck[0])
-		# Circular Durak uses the same tightly stacked deck with a sideways trump.
-		trump_card.position = center + Vector2(0, -88)
-		trump_card.rotation_degrees = 90
-		trump_card.pivot_offset = trump_card.size / 2.0
-		trump_card.z_index = 1
-		felt.add_child(trump_card)
-		for layer in 4:
-			var back := make_card_back()
-			back.position = center + Vector2(-66 + layer * 2, -88 - layer * 2)
-			back.z_index = 3 + layer
-			felt.add_child(back)
+		CardVisuals.add_compact_deck(felt, center + Vector2(-110, -88), deck[0], Vector2(128, 176), deck.size())
 	if circle_drawn != "":
 		var drawn := card_label(circle_drawn)
 		drawn.position = center + Vector2(105, -88)
@@ -593,37 +582,18 @@ func add_playing_table() -> void:
 	felt.add_theme_stylebox_override("panel", felt_style)
 	box.add_child(felt)
 
-	var deck_title := Label.new()
-	deck_title.text = "КОЛОДА • %d" % deck.size()
-	deck_title.position = Vector2(18, -243)
-	deck_title.add_theme_font_size_override("font_size", 25)
-	deck_title.modulate = Color("b8dacb")
-	felt.add_child(deck_title)
-
+	var deck_card_size := CardVisuals.fitted_hand_card_size(hands[0].size(), Vector2(174, 250))
 	if not deck.is_empty():
-		var trump_card := card_label((RANKS[0] + "♦") if durak_variant == "japanese" else deck[0])
-		# A single compact deck: backs only 2 px apart. Trump is horizontal
-		# beneath it, exposing roughly half of the face-up card on the right.
-		trump_card.position = Vector2(88, -204)
-		trump_card.rotation_degrees = 90
-		trump_card.pivot_offset = trump_card.size / 2.0
-		trump_card.z_index = 1
-		trump_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		felt.add_child(trump_card)
-		for layer in 4:
-			var back := make_card_back()
-			back.position = Vector2(22 + layer * 2, -204 - layer * 2)
-			back.z_index = 3 + layer
-			back.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			felt.add_child(back)
+		var trump_face := (RANKS[0] + "♦") if durak_variant == "japanese" else deck[0]
+		# Matches the actual size of the player's hand cards; no parent scale.
+		CardVisuals.add_compact_deck(felt, Vector2(-52, -247), trump_face, deck_card_size, deck.size())
 	else:
 		var empty_deck := Label.new()
-		empty_deck.text = "Колода\nпуста"
-		empty_deck.position = Vector2(22, -204)
-		empty_deck.size = Vector2(128, 176)
-		empty_deck.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		empty_deck.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		empty_deck.modulate = Color(1, 1, 1, 0.45)
+		empty_deck.text = "КОЛОДА ПУСТА"
+		empty_deck.position = Vector2(-52, -175)
+		empty_deck.size = Vector2(300, 55)
+		empty_deck.add_theme_font_size_override("font_size", 38)
+		empty_deck.modulate = Color(1, 1, 1, 0.65)
 		felt.add_child(empty_deck)
 
 	var play_area := Control.new()
