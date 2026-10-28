@@ -176,8 +176,8 @@ func add_hand() -> void:
 	hands[0].sort_custom(CardVisuals.card_less)
 	var area := Control.new(); area.custom_minimum_size.y = 295; area.clip_contents = false; content.add_child(area)
 	if hands[0].is_empty(): return
-	var size := Vector2(154, 208)
-	var step: float = 0.0 if hands[0].size() == 1 else minf(108.0, (996.0 - size.x) / (hands[0].size() - 1))
+	var size := CardVisuals.fitted_hand_card_size(hands[0].size(), Vector2(154, 208))
+	var step: float = CardVisuals.hand_step(hands[0].size(), size)
 	var width := size.x + step * (hands[0].size() - 1); var start := (996.0 - width) / 2.0
 	for index in hands[0].size():
 		var card := Button.new(); CardVisuals.decorate_button(card, hands[0][index], size, true)
