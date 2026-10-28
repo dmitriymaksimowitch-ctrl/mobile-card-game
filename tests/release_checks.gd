@@ -34,14 +34,30 @@ func run_checks():
 	assert(game.hands[0].size() == 2); assert(view.get_meta("shaking", false))
 	await create_timer(0.4).timeout
 	assert(not view.get_meta("shaking", false)); assert(abs(view.rotation_degrees) < 0.01)
+	# Prevent the old bug: deck/trump must remain unscaled outside the
+	# legacy table-centering control, and the deck must match hand-card size.
+	game.deck.assign(["6♦", "7♦"])
+	game.hands[0].assign(["6♣", "7♣", "8♠", "9♦", "Т♥", "К♠"])
 	for pairs in [1,2,3,6]:
 		game.table.clear()
 		for i in pairs: game.table.append({"attack":"6♠", "defense":"7♠"})
 		game.draw_table(); await process_frame; await process_frame
 		var area = game.find_child("PlayedCards", true, false)
 		assert(area != null and area.get_child_count() == pairs * 2)
+		var deck_view: Control = game.find_child("DeckDisplay", true, false)
+		assert(deck_view != null and deck_view.scale == Vector2.ONE)
+		assert(deck_view.get_parent().name != "Control")
+		assert(deck_view.get_child_count() == 6)
+		var expected_size: Vector2 = visuals.fitted_hand_card_size(6, Vector2(174, 250))
+		var trump_view: Control = deck_view.get_node("TrumpCard")
+		var deck_back: Control = deck_view.get_node("DeckBack0")
+		assert(deck_back.size.is_equal_approx(expected_size))
+		assert(trump_view.size.is_equal_approx(expected_size))
+		assert(is_equal_approx(trump_view.rotation_degrees, 90.0))
+		assert(trump_view.z_index < deck_back.z_index)
+		assert(is_equal_approx(trump_view.position.x, expected_size.x / 2.0))
 		for height in [600,1000,1400]:
 			area.get_parent().size = Vector2(836,height)
 			assert(abs(area.position.y + area.size.y / 2 - height / 2.0) < 1)
-	print("PASS: adaptive hand, sorting, invalid move, final move pause, cancelled result, centered 1/2/3/6 pairs, full screen")
+	print("PASS: deck card size/half-trump/stack, adaptive hand, sorting, invalid move, table layout")
 	quit()
