@@ -66,8 +66,8 @@ jobs:
               ("export/android/java_sdk_path", os.environ["JAVA_HOME"])
           ):
               line = f'{key} = "{value}"'
-              if re.search(rf"(?m)^{re.escape(key)}\\s*=", content):
-                  content = re.sub(rf"(?m)^{re.escape(key)}\\s*=.*$", lambda _: line, content)
+              if re.search(rf"(?m)^{re.escape(key)}\s*=", content):
+                  content = re.sub(rf"(?m)^{re.escape(key)}\s*=.*$", lambda _: line, content)
               else:
                   content += "\n" + line
           settings.write_text(content)
