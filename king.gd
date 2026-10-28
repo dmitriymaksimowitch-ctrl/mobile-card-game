@@ -93,10 +93,11 @@ func add_contract_banner() -> void:
 	var label:=Label.new(); label.text=contract_name(("+" if positive else "-")+contract).to_upper(); label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER; label.add_theme_font_size_override("font_size",48); label.add_theme_color_override("font_color",Color("fff0b0")); panel.add_child(label)
 func add_hand() -> void:
 	hands[0].sort_custom(CardVisuals.card_less)
-	var area:=Control.new(); area.custom_minimum_size.y=300; content.add_child(area); var total:=hands[0].size(); if total==0:return
-	var step:float=0.0 if total == 1 else minf(110.0, (996.0-154.0)/(total-1)); var start:float=(996-(154+step*(total-1)))/2
+	var area:=Control.new(); area.custom_minimum_size.y=300; area.clip_contents=false; content.add_child(area); var total:=hands[0].size(); if total==0:return
+	var size:=CardVisuals.fitted_hand_card_size(total,Vector2(154,208))
+	var step:float=CardVisuals.hand_step(total,size); var start:float=(996-(size.x+step*(total-1)))/2
 	for i in total:
-		var card:String=hands[0][i]; var b:=Button.new(); CardVisuals.decorate_button(b,card,Vector2(154,208),true); b.position=Vector2(start+i*step,45); b.pressed.connect(attempt_hand_card.bind(card,b)); area.add_child(b)
+		var card:String=hands[0][i]; var b:=Button.new(); CardVisuals.decorate_button(b,card,size,true); b.position=Vector2(start+i*step,45); b.pressed.connect(attempt_hand_card.bind(card,b)); area.add_child(b)
 func legal(player:int,card:String) -> bool:
 	if player!=turn or table.size()>=4:return false
 	if table.is_empty():
