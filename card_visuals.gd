@@ -142,7 +142,7 @@ static func add_table_seats(table: Control, names: Array[String], card_counts: A
 	var frame := MarginContainer.new(); frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	frame.add_theme_constant_override("margin_left", 80); frame.add_theme_constant_override("margin_right", 80)
 	var index := table.get_index(); parent.add_child(frame); parent.move_child(frame, index); table.reparent(frame, false)
-	var gap := Control.new(); gap.custom_minimum_size.y = 320
+	var gap := Control.new(); gap.custom_minimum_size.y = 320 if game.has_method("durak_name") else 220
 	parent.add_child(gap); parent.move_child(gap, frame.get_index())
 	# Adapt older fixed-coordinate layouts to the actual center of the table.
 	if table.get_node_or_null("PlayedCards") == null:
