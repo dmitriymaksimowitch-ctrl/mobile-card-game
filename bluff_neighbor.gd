@@ -224,8 +224,8 @@ func add_hand() -> void:
 	for card in selected_cards: selected.append(hands[0].find(card))
 	var area := Control.new(); area.custom_minimum_size.y = 280; area.clip_contents = false; content.add_child(area)
 	if hands[0].is_empty(): return
-	var size := Vector2(154, 208)
-	var step: float = 0.0 if hands[0].size() == 1 else minf(105.0, (996.0 - size.x) / (hands[0].size() - 1))
+	var size := CardVisuals.fitted_hand_card_size(hands[0].size(), Vector2(154, 208))
+	var step: float = CardVisuals.hand_step(hands[0].size(), size)
 	var width := size.x + step * (hands[0].size() - 1); var start := (996.0 - width) / 2.0
 	for index in hands[0].size():
 		var card: String = hands[0][index]
@@ -343,15 +343,15 @@ func show_challenge_result(checked: String, truthful: bool, taker: int, amount: 
 		felt.add_child(visual)
 		var tween := create_tween().set_parallel(true)
 		tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
-		tween.tween_property(visual, "position", destination, 1.25).set_delay(0.9 + card_index * 0.04)
-		tween.tween_property(visual, "rotation_degrees", 0.0, 1.25).set_delay(0.9 + card_index * 0.04)
-		tween.tween_property(visual, "scale", Vector2(0.55, 0.55), 1.25).set_delay(0.9 + card_index * 0.04)
-		tween.tween_property(visual, "modulate:a", 0.15, 0.55).set_delay(1.55 + card_index * 0.04)
+		tween.tween_property(visual, "position", destination, 1.8).set_delay(0.9 + card_index * 0.08)
+		tween.tween_property(visual, "rotation_degrees", 0.0, 1.8).set_delay(0.9 + card_index * 0.08)
+		tween.tween_property(visual, "scale", Vector2(0.55, 0.55), 1.8).set_delay(0.9 + card_index * 0.08)
+		tween.tween_property(visual, "modulate:a", 0.15, 0.6).set_delay(2.1 + card_index * 0.08)
 	var ok := button("Понятно", finish_challenge); ok.disabled = true
 	enable_challenge_ok(ok, revision)
 
 func enable_challenge_ok(ok: Button, stamp: int) -> void:
-	await get_tree().create_timer(2.25).timeout
+	await get_tree().create_timer(3.1).timeout
 	if stamp == revision and is_instance_valid(ok): ok.disabled = false
 
 func confirm_previous_exit() -> void:
