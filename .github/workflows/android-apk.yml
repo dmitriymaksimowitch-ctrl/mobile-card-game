@@ -144,6 +144,27 @@ jobs:
           "$tools/aapt" dump badging build/card-club-latest.apk | grep -F "package: name='org.cardclub.mobilegame.v1'"
           "$tools/zipalign" -c -p 4 build/card-club-latest.apk
 
+      # PR builds also provide the unsigned, already zip-aligned APK and a
+      # standalone official apksigner JAR for offline signing by the owner.
+      # The key is never copied into artifacts or the repository.
+      - name: Prepare aligned APK and signing tool for owner
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -f -p 4 build/card-club-unsigned.apk build/card-club-aligned.apk
+          mkdir -p build/signing-tool
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" build/signing-tool/apksigner.jar
+
+      - name: Upload unsigned APK and official signing tool
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: card-club-offline-signing-input
+          path: |
+            build/card-club-aligned.apk
+            build/signing-tool/apksigner.jar
+          retention-days: 7
+
       - name: Upload signed Android APK
         if: steps.signing.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
