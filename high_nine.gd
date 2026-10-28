@@ -172,7 +172,7 @@ func opponent_view(p: int) -> PanelContainer:
 			var home := back.position
 			back.position = Vector2(seat.custom_minimum_size.x / 2.0, 360)
 			back.scale = Vector2(1.7, 1.7); back.modulate.a = 0.2
-			animate_move(back, home, back.rotation_degrees, 0.9, i * 0.12)
+			animate_move(back, home, back.rotation_degrees, 1.5, i * 0.14)
 	return seat
 
 func add_pile_view() -> void:
@@ -201,7 +201,7 @@ func add_pile_view() -> void:
 			if action_animation.get("kind", "") == "play" and pile[i] in animated_cards:
 				var source := Vector2(480, 520) if action_animation.get("player", 0) == 0 else Vector2(480, -190)
 				card.position = source; card.scale = Vector2(0.62, 0.62); card.modulate.a = 0.25
-				animate_move(card, home, -4 + offset * 2, 0.3, animated_cards.find(pile[i]) * 0.04)
+				animate_move(card, home, -4 + offset * 2, 1.0, animated_cards.find(pile[i]) * 0.08)
 		var amount := Label.new(); amount.text = "%d карт в стопке" % pile.size(); amount.position = Vector2(380, 335)
 		amount.size = Vector2(240, 40); amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; amount.vertical_alignment = VERTICAL_ALIGNMENT_CENTER; felt.add_child(amount)
 	CardVisuals.add_table_seats(felt, player_names(), hand_counts(), turn, Vector2(996, 420))
@@ -211,8 +211,8 @@ func add_hand() -> void:
 	var area := Control.new(); area.custom_minimum_size.y = 290; area.clip_contents = false; content.add_child(area)
 	var total := hands[0].size()
 	if total == 0: return
-	var card_size := Vector2(150, 208); var available := 996.0
-	var step: float = 0.0 if total == 1 else minf(112.0, (available - card_size.x) / (total - 1))
+	var card_size := CardVisuals.fitted_hand_card_size(total, Vector2(150, 208)); var available := 996.0
+	var step: float = CardVisuals.hand_step(total, card_size)
 	var start_x: float = (available - (card_size.x + step * (total - 1))) / 2.0
 	for i in total:
 		var card: String = hands[0][i]; var distance := i - (total - 1) / 2.0
@@ -225,7 +225,7 @@ func add_hand() -> void:
 		var received: Array = action_animation.get("cards", [])
 		if action_animation.get("kind", "") == "take" and action_animation.get("player", -1) == 0 and card in received:
 			face.position = Vector2(470, -500); face.scale = Vector2(0.55, 0.55); face.modulate.a = 0.2
-			animate_move(face, home, 0.0, 0.3, received.find(card) * 0.04)
+			animate_move(face, home, 0.0, 1.0, received.find(card) * 0.08)
 
 func lift_hand_card(card: Control, home: Vector2, angle: float) -> void:
 	card.z_index = 1000
@@ -377,7 +377,7 @@ func schedule_bot() -> void:
 	bot_move(revision)
 
 func bot_move(stamp: int) -> void:
-	await get_tree().create_timer(0.06 if fast_mode else 0.9).timeout
+	await get_tree().create_timer(0.06 if fast_mode else 1.2).timeout
 	if stamp != revision or not running or turn == 0: return
 	var choice := choose_bot_card(turn)
 	if choice == "": take_three(turn)
