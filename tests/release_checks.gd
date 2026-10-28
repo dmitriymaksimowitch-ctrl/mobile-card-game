@@ -6,6 +6,12 @@ func run_checks():
 	cards.sort_custom(func(a, b): return visuals.card_less(a, b, "♣"))
 	assert(cards == ["6♦", "7♦", "6♥", "Т♥", "8♠", "6♣", "Т♣"])
 	assert(ProjectSettings.get_setting("display/window/stretch/aspect") == "expand")
+	for amount in [1, 2, 6, 12, 24, 36]:
+		var fitted: Vector2 = visuals.fitted_hand_card_size(amount, Vector2(174, 250))
+		var step: float = visuals.hand_step(amount, fitted)
+		assert(fitted.x > 0.0 and fitted.y > 0.0)
+		assert(fitted.x + step * (amount - 1) <= 996.1)
+		if amount > 1: assert(step >= fitted.x)
 	var game = load("res://main.gd").new(); root.add_child(game)
 	game.count = 2; game.durak_variant = "simple"
 	game.hands.append([]); game.hands.append(["7♠"])
@@ -15,7 +21,7 @@ func run_checks():
 	assert(game.phase == "resolving"); assert(game.table[0].defense == "7♠")
 	await create_timer(0.45).timeout
 	assert(game.phase == "resolving")
-	await create_timer(0.6).timeout
+	await create_timer(0.9).timeout
 	assert(game.phase == "over")
 	game.show_menu(); game.phase = "attack"; game.finish_defense(); game.show_menu()
 	await create_timer(1.0).timeout
@@ -37,5 +43,5 @@ func run_checks():
 		for height in [600,1000,1400]:
 			area.get_parent().size = Vector2(836,height)
 			assert(abs(area.position.y + area.size.y / 2 - height / 2.0) < 1)
-	print("PASS: sorting, invalid move, final move pause, cancelled result, centered 1/2/3/6 pairs, full screen")
+	print("PASS: adaptive hand, sorting, invalid move, final move pause, cancelled result, centered 1/2/3/6 pairs, full screen")
 	quit()
