@@ -20,17 +20,29 @@ static func face_style(_playable := true) -> StyleBoxFlat:
 
 static func decorate_button(button: Button, card: String, card_size: Vector2, _playable := true) -> void:
 	button.text = ""; button.size = card_size; button.custom_minimum_size = card_size
-	button.pivot_offset = card_size / 2.0; button.focus_mode = Control.FOCUS_NONE
+	button.pivot_offset = card_size / 2.0; button.focus_mode = Control.FOCUS_NONE; button.clip_contents = false
 	for state in ["normal", "disabled", "hover", "pressed"]: button.add_theme_stylebox_override(state, face_style())
 	add_card_marks(button, card, card_size)
+
+# Fit the complete player hand into the available width without cards hiding one another.
+static func fitted_hand_card_size(card_count: int, preferred: Vector2, available_width := 996.0) -> Vector2:
+	var count := maxi(1, card_count)
+	var gap := minf(6.0, available_width / float(count * 5))
+	var width := minf(preferred.x, (available_width - gap * float(count - 1)) / float(count))
+	return Vector2(width, preferred.y * width / preferred.x)
+
+static func hand_step(card_count: int, card_size: Vector2, available_width := 996.0) -> float:
+	if card_count <= 1: return 0.0
+	var gap := minf(6.0, available_width / float(card_count * 5))
+	return minf(card_size.x + gap, (available_width - card_size.x) / float(card_count - 1))
 
 static func add_card_marks(parent: Control, card: String, card_size: Vector2) -> void:
 	var ink := ink_for(card)
 	var corner := Label.new(); corner.text = rank_of(card)
-	corner.position = Vector2(12, -3); corner.size = Vector2(card_size.x * 0.48, card_size.y * 0.28)
-	corner.add_theme_font_size_override("font_size", int(card_size.x * 0.34)); corner.add_theme_color_override("font_color", ink)
+	corner.position = Vector2(maxf(3.0, card_size.x * 0.06), 2); corner.size = Vector2(card_size.x * 0.75, card_size.y * 0.28)
+	corner.add_theme_font_size_override("font_size", int(card_size.x * (0.27 if rank_of(card) == "10" else 0.34))); corner.add_theme_color_override("font_color", ink)
 	corner.mouse_filter = Control.MOUSE_FILTER_IGNORE; parent.add_child(corner)
-	var suit := Label.new(); suit.text = suit_of(card); suit.position = Vector2(12, card_size.y * 0.23)
+	var suit := Label.new(); suit.text = suit_of(card); suit.position = Vector2(maxf(3.0, card_size.x * 0.06), card_size.y * 0.23)
 	suit.add_theme_font_size_override("font_size", int(card_size.x * 0.31)); suit.add_theme_color_override("font_color", ink)
 	suit.mouse_filter = Control.MOUSE_FILTER_IGNORE; parent.add_child(suit)
 	var center := Label.new(); center.text = suit_of(card); center.position = Vector2(card_size.x * 0.12, card_size.y * 0.40)
@@ -40,7 +52,7 @@ static func add_card_marks(parent: Control, card: String, card_size: Vector2) ->
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE; parent.add_child(center)
 
 static func decorate_label(label: Label, card: String, card_size: Vector2) -> void:
-	label.text = ""; label.size = card_size; label.custom_minimum_size = card_size
+	label.text = ""; label.size = card_size; label.custom_minimum_size = card_size; label.clip_contents = false
 	label.add_theme_stylebox_override("normal", face_style()); add_card_marks(label, card, card_size)
 
 static func back_style(_accent := Color("274454")) -> StyleBoxFlat:
